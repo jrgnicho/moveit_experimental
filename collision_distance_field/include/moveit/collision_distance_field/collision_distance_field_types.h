@@ -173,10 +173,10 @@ public:
     return relative_collision_points_;
   }
 
-  const bodies::Body* getBody() const
+/*  const bodies::Body* getBody() const
   {
     return body_;
-  }
+  }*/
 
   Eigen::Affine3d getRelativeCylinderPose() const {
     return relative_cylinder_pose_;

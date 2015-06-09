@@ -36,7 +36,7 @@
 
 #include <moveit/collision_distance_field/collision_distance_field_types.h>
 #include <geometric_shapes/body_operations.h>
-#include <moveit/distance_field/distance_field_common.h>
+#include <moveit/distance_field/distance_field.h>
 
 std::vector<collision_detection::CollisionSphere> collision_detection::determineCollisionSpheres(const bodies::Body* body, 
                                                                                                            Eigen::Affine3d& relative_transform)
@@ -166,7 +166,7 @@ collision_detection::BodyDecomposition::BodyDecomposition(const shapes::ShapeCon
   body_->setPose(Eigen::Affine3d::Identity());
   body_->setPadding(padding);
   collision_spheres_ = determineCollisionSpheres(body_, relative_cylinder_pose_);
-  relative_collision_points_ = distance_field::determineCollisionPoints(body_, resolution);
+  //relative_collision_points_ = distance_field::determineCollisionPoints(body_, resolution);
   sphere_radii_.resize(collision_spheres_.size());
   for(unsigned int i = 0; i < collision_spheres_.size(); i++) {
     sphere_radii_[i] = collision_spheres_[i].radius_;

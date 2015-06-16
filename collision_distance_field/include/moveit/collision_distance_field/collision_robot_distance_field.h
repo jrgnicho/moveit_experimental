@@ -40,7 +40,7 @@
 #include <moveit/collision_detection/collision_robot.h>
 #include <moveit/collision_distance_field/collision_distance_field_types.h>
 #include <moveit/collision_distance_field/collision_common_distance_field.h>
-
+#include <moveit/planning_scene/planning_scene.h>
 #include <boost/thread/mutex.hpp>
 
 namespace collision_detection
@@ -271,6 +271,8 @@ protected:
   boost::shared_ptr<DistanceFieldCacheEntry> distance_field_cache_entry_;  
   std::map<std::string, std::map<std::string, bool> > in_group_update_map_;
   std::map<std::string, boost::shared_ptr<GroupStateRepresentation> > pregenerated_group_state_representation_map_;
+
+  planning_scene::PlanningScenePtr planning_scene_;
 };
 
 }

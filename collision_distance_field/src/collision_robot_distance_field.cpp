@@ -47,6 +47,7 @@ namespace collision_detection
 CollisionRobotDistanceField::CollisionRobotDistanceField(const robot_model::RobotModelConstPtr& kmodel)
   : CollisionRobot(kmodel)
 {  
+  planning_scene_.reset(new planning_scene::PlanningScene(robot_model_));
 }
 
 CollisionRobotDistanceField::CollisionRobotDistanceField(const robot_model::RobotModelConstPtr& kmodel, 
@@ -79,6 +80,7 @@ CollisionRobotDistanceField::CollisionRobotDistanceField(const CollisionRobotDis
   link_body_decomposition_index_map_ = other.link_body_decomposition_index_map_;
   in_group_update_map_ = other.in_group_update_map_;
   pregenerated_group_state_representation_map_ = other.pregenerated_group_state_representation_map_;
+  planning_scene_.reset(new planning_scene::PlanningScene(robot_model_));
 }
 
 void CollisionRobotDistanceField::initialize(const std::map<std::string, std::vector<CollisionSphere> >& link_body_decompositions,
@@ -99,6 +101,7 @@ void CollisionRobotDistanceField::initialize(const std::map<std::string, std::ve
   max_propogation_distance_ = max_propogation_distance;
   addLinkBodyDecompositions(resolution_, link_body_decompositions);  
   moveit::core::RobotState state(robot_model_);
+  planning_scene_.reset(new planning_scene::PlanningScene(robot_model_));
 
 
   const std::vector<const moveit::core::JointModelGroup* >& jmg = robot_model_->getJointModelGroups();
@@ -116,7 +119,7 @@ void CollisionRobotDistanceField::initialize(const std::map<std::string, std::ve
     ROS_DEBUG_STREAM(__FUNCTION__<<": invoking generateDistanceFieldCacheEntry()");
     boost::shared_ptr<DistanceFieldCacheEntry> dfce = generateDistanceFieldCacheEntry(jm->getName(),
                                                                                       state,
-                                                                                      NULL,
+                                                                                      &planning_scene_->getAllowedCollisionMatrix(),
                                                                                       false);
     ROS_DEBUG_STREAM(__FUNCTION__<<": invoking getGroupStateRepresentation()");
     getGroupStateRepresentation(dfce, state, pregenerated_group_state_representation_map_[jm->getName()]);
@@ -600,14 +603,19 @@ CollisionRobotDistanceField::generateDistanceFieldCacheEntry(const std::string& 
 
       if(acm)
       {
+        ROS_DEBUG_STREAM("Allowed Collision Matrix found");
         collision_detection::AllowedCollision::Type t;
         if(acm->getEntry(link_name, link_name, t) && 
-           t == collision_detection::AllowedCollision::ALWAYS) {
+           t == collision_detection::AllowedCollision::ALWAYS)
+        {
           dfce->self_collision_enabled_[i] = false;
         }
+
         dfce->intra_group_collision_enabled_[i] = all_true;
         for(unsigned int j = i+1; j < dfce->link_names_.size(); j++) {
-          if(link_name == dfce->link_names_[j]) {
+
+          if(link_name == dfce->link_names_[j])
+          {
             dfce->intra_group_collision_enabled_[i][j] = false;
             continue;
           } 
@@ -620,6 +628,7 @@ CollisionRobotDistanceField::generateDistanceFieldCacheEntry(const std::string& 
           //std::cerr << "Setting not allowed for " << link_name << " and " << dfce->link_names_[j] << std::endl;
           //}
         }
+
         std::vector<const moveit::core::AttachedBody*> link_attached_bodies;
         state.getAttachedBodies(link_attached_bodies,link_state);
         //link_state->getAttachedBodies(link_attached_bodies);

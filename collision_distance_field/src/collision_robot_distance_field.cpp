@@ -38,6 +38,8 @@
 #include <moveit/collision_distance_field/collision_robot_distance_field.h>
 #include <moveit/collision_distance_field/collision_common_distance_field.h>
 #include <moveit/distance_field/propagation_distance_field.h>
+#include <ros/console.h>
+#include <ros/assert.h>
 
 namespace collision_detection
 {
@@ -98,6 +100,7 @@ void CollisionRobotDistanceField::initialize(const std::map<std::string, std::ve
   addLinkBodyDecompositions(resolution_, link_body_decompositions);  
   moveit::core::RobotState state(robot_model_);
 
+
   const std::vector<const moveit::core::JointModelGroup* >& jmg = robot_model_->getJointModelGroups();
   for(std::vector<const moveit::core::JointModelGroup* >::const_iterator it = jmg.begin(); it != jmg.end(); it++)
   {
@@ -110,10 +113,12 @@ void CollisionRobotDistanceField::initialize(const std::map<std::string, std::ve
       updated_group_entry[links[i]] = true;
     }
     in_group_update_map_[jm->getName()] = updated_group_entry;
+    ROS_DEBUG_STREAM(__FUNCTION__<<": invoking generateDistanceFieldCacheEntry()");
     boost::shared_ptr<DistanceFieldCacheEntry> dfce = generateDistanceFieldCacheEntry(jm->getName(),
                                                                                       state,
                                                                                       NULL,
                                                                                       false);
+    ROS_DEBUG_STREAM(__FUNCTION__<<": invoking getGroupStateRepresentation()");
     getGroupStateRepresentation(dfce, state, pregenerated_group_state_representation_map_[jm->getName()]);
   }
 }
@@ -537,46 +542,64 @@ CollisionRobotDistanceField::generateDistanceFieldCacheEntry(const std::string& 
 { 
   ros::WallTime n = ros::WallTime::now();
   boost::shared_ptr<DistanceFieldCacheEntry> dfce(new DistanceFieldCacheEntry());
-  if(robot_model_->getJointModelGroup(group_name) == NULL) {
-    logWarn("No group %s", group_name.c_str());
+
+  if(robot_model_->getJointModelGroup(group_name) == NULL)
+  {
+    ROS_WARN("No group %s", group_name.c_str());
     return dfce;
   }
+
   dfce->group_name_ = group_name;
   dfce->state_.reset(new moveit::core::RobotState(state));
-  if(acm) {
+  if(acm)
+  {
     dfce->acm_ = *acm;
   }
+
   //generateAllowedCollisionInformation(dfce);
   dfce->link_names_ = robot_model_->getJointModelGroup(group_name)->getUpdatedLinkModelNames();
+  ROS_DEBUG_STREAM(__FUNCTION__<<" found "<<dfce->link_names_.size()<<" updated links from group "<<group_name);
   std::vector<const moveit::core::AttachedBody*> all_attached_bodies;
   dfce->state_->getAttachedBodies(all_attached_bodies);
   unsigned int att_count = 0;
+
   //may be bigger than necessary
   std::vector<bool> all_true(dfce->link_names_.size()+all_attached_bodies.size(), true);
   std::vector<bool> all_false(dfce->link_names_.size()+all_attached_bodies.size(), false);
+
   const std::vector<const moveit::core::LinkModel*>& lsv = state.getJointModelGroup(group_name)->getLinkModels();
   dfce->self_collision_enabled_.resize(dfce->link_names_.size()+all_attached_bodies.size(), true);
   dfce->intra_group_collision_enabled_.resize(dfce->link_names_.size()+all_attached_bodies.size());
-  for(unsigned int i = 0; i < dfce->link_names_.size(); i++) {
+
+  for(unsigned int i = 0; i < dfce->link_names_.size(); i++)
+  {
     std::string link_name = dfce->link_names_[i];
     const moveit::core::LinkModel* link_state = dfce->state_->getLinkModel(link_name);
     bool found = false;
-    for(unsigned int j = 0; j < lsv.size(); j++) {
-      if(lsv[j]->getName() == link_name) {
+
+    for(unsigned int j = 0; j < lsv.size(); j++)
+    {
+      if(lsv[j]->getName() == link_name)
+      {
         dfce->link_state_indices_.push_back(j);
         found = true;
         break;
       }
     }
-    if(!found) {
-      logInform("No link state found for link %s", dfce->link_names_[i].c_str());
+
+    if(!found)
+    {
+      ROS_INFO("No link state found for link %s", dfce->link_names_[i].c_str());
       return dfce;
     }
+
     if(link_state->getShapes().size() > 0)
     {
       dfce->link_has_geometry_.push_back(true);
       dfce->link_body_indices_.push_back(link_body_decomposition_index_map_.find(link_name)->second);
-      if(acm) {
+
+      if(acm)
+      {
         collision_detection::AllowedCollision::Type t;
         if(acm->getEntry(link_name, link_name, t) && 
            t == collision_detection::AllowedCollision::ALWAYS) {
@@ -604,6 +627,7 @@ CollisionRobotDistanceField::generateDistanceFieldCacheEntry(const std::string& 
         {
           dfce->attached_body_names_.push_back(link_attached_bodies[j]->getName());
           dfce->attached_body_link_state_indices_.push_back(dfce->link_state_indices_[i]);
+
           if(acm->getEntry(link_name, link_attached_bodies[j]->getName(), t))
           {
             if(t == collision_detection::AllowedCollision::ALWAYS)
@@ -619,28 +643,38 @@ CollisionRobotDistanceField::generateDistanceFieldCacheEntry(const std::string& 
             //std::cerr << "Setting intra group for " << link_name << " and attached body " << link_attached_bodies[j]->getName() << " to false" << std::endl;
           }
         }
-      } else {
+      }
+      else
+      {
         dfce->self_collision_enabled_[i] = true;
         dfce->intra_group_collision_enabled_[i] = all_true;
       }
-    } else {
+    } else
+    {
       dfce->link_has_geometry_.push_back(false);
       dfce->link_body_indices_.push_back(0);
       dfce->self_collision_enabled_[i] = false;
       dfce->intra_group_collision_enabled_[i] = all_false;
     }
   }
-  for(unsigned int i = 0; i < dfce->attached_body_names_.size(); i++) {  
+  ROS_DEBUG_STREAM(__FUNCTION__<<": completed generating collision table");
+
+  for(unsigned int i = 0; i < dfce->attached_body_names_.size(); i++)
+  {
     dfce->intra_group_collision_enabled_[i+dfce->link_names_.size()] = all_true;
-    if(acm) {
+    if(acm)
+    {
       collision_detection::AllowedCollision::Type t;
       if(acm->getEntry(dfce->attached_body_names_[i], dfce->attached_body_names_[i], t) &&
-         t == collision_detection::AllowedCollision::ALWAYS) {
+         t == collision_detection::AllowedCollision::ALWAYS)
+      {
         dfce->self_collision_enabled_[i+dfce->link_names_.size()] = false;
       }
-      for(unsigned int j = i+1; j < dfce->attached_body_names_.size(); j++) {
+      for(unsigned int j = i+1; j < dfce->attached_body_names_.size(); j++)
+      {
         if(acm->getEntry(dfce->attached_body_names_[i], dfce->attached_body_names_[j], t) &&
-           t == collision_detection::AllowedCollision::ALWAYS) {
+           t == collision_detection::AllowedCollision::ALWAYS)
+        {
           dfce->intra_group_collision_enabled_[i+dfce->link_names_.size()][j+dfce->link_names_.size()] = false;
         } 
         //TODO - allow for touch links to be attached bodies?
@@ -650,19 +684,28 @@ CollisionRobotDistanceField::generateDistanceFieldCacheEntry(const std::string& 
       }
     } 
   }
+  ROS_DEBUG_STREAM(__FUNCTION__<<": completed populating intra_group_collision_enabled_ map");
+
   std::map<std::string, boost::shared_ptr<GroupStateRepresentation> >::const_iterator it = pregenerated_group_state_representation_map_.find(dfce->group_name_);
   if(it != pregenerated_group_state_representation_map_.end())
   {
     dfce->pregenerated_group_state_representation_ = it->second;
   }
+  ROS_DEBUG_STREAM(__FUNCTION__<<": assigned 'dfce->pregenerated_group_state_representation_'");
+
   std::map<std::string, bool> updated_map;
-  const moveit::core::JointModel* joint_model = dfce->state_->getLinkModel(dfce->link_names_[0])->getParentJointModel();
-  std::vector<const moveit::core::JointModel*> child_joint_models = joint_model->getDescendantJointModels();
-  //robot_model_->getChildJointModels(joint_model, child_joint_models);
-  for(unsigned int i = 0; i < child_joint_models.size(); i++)
+  if(!dfce->link_names_.empty())
   {
-    updated_map[child_joint_models[i]->getName()] = true;
+    //const moveit::core::JointModel* joint_model = dfce->state_->getLinkModel(dfce->link_names_[0])->getParentJointModel();
+    //std::vector<const moveit::core::JointModel*> child_joint_models = joint_model->getDescendantJointModels();
+    const std::vector<const moveit::core::JointModel*> &child_joint_models = dfce->state_->getLinkModel(dfce->link_names_[0])->getChildJointModels();
+    for(unsigned int i = 0; i < child_joint_models.size(); i++)
+    {
+      updated_map[child_joint_models[i]->getName()] = true;
+    }
+    ROS_DEBUG_STREAM(__FUNCTION__<<": filled updated_map");
   }
+
 
   const std::vector<const moveit::core::JointModel* > joint_models = state.getJointModelGroup(group_name)->getActiveJointModels();
   for(unsigned int i = 0; i < joint_models.size(); i++)
@@ -766,7 +809,7 @@ void CollisionRobotDistanceField::addLinkBodyDecompositions(double resolution)
   {
     if(!link_models[i]->getShapes().front())
     {
-      logWarn("No collision geometry for link model %s though there should be", link_models[i]->getName().c_str());
+      ROS_WARN("No collision geometry for link model %s though there should be", link_models[i]->getName().c_str());
       continue;
     }
     logDebug("Generating model for %s", link_models[i]->getName().c_str());
@@ -779,20 +822,35 @@ void CollisionRobotDistanceField::addLinkBodyDecompositions(double resolution)
 void CollisionRobotDistanceField::addLinkBodyDecompositions(double resolution,
                                                             const std::map<std::string, std::vector<CollisionSphere> >& link_spheres) 
 {
+  ROS_ASSERT_MSG(robot_model_,"RobotModelPtr is invalid");
   const std::vector<const moveit::core::LinkModel*>& link_models = robot_model_->getLinkModelsWithCollisionGeometry();
-  for(unsigned int i = 0; i < link_models.size(); i++) {
-    if(!link_models[i]->getShapes().front()) {
-      logWarn("No collision geometry for link model %s though there should be", link_models[i]->getName().c_str());
+
+  for(unsigned int i = 0; i < link_models.size(); i++)
+  {
+    if(!link_models[i]->getShapes().front())
+    {
+      ROS_WARN("No collision geometry for link model %s though there should be", link_models[i]->getName().c_str());
       continue;
     }
-    logDebug("Generating model for %s", link_models[i]->getName().c_str());
+
+    if(link_models[i]->getShapes().empty())
+    {
+      ROS_DEBUG_STREAM("Skipping model generation for link "<<link_models[i]->getName()<<" since it contains no geometries");
+      continue;
+    }
+
     BodyDecompositionPtr bd(new BodyDecomposition(link_models[i]->getShapes().front(), resolution, resolution));
-    if(link_spheres.find(link_models[i]->getName()) != link_spheres.end()) {
+    ROS_DEBUG("Generated model for %s", link_models[i]->getName().c_str());
+
+    if(link_spheres.find(link_models[i]->getName()) != link_spheres.end())
+    {
       bd->replaceCollisionSpheres(link_spheres.find(link_models[i]->getName())->second, Eigen::Affine3d::Identity());
     }
     link_body_decomposition_vector_.push_back(bd);
     link_body_decomposition_index_map_[link_models[i]->getName()] = link_body_decomposition_vector_.size()-1;
   }
+
+  ROS_DEBUG_STREAM(__FUNCTION__<<" Finished ");
 }
 
 PosedBodySphereDecompositionPtr 
@@ -845,12 +903,12 @@ void CollisionRobotDistanceField::updateGroupStateRepresentationState(const move
     const moveit::core::AttachedBody* att = state.getAttachedBody(gsr->dfce_->attached_body_names_[i]);
     if(!att)
     {
-      logWarn("Attached body discrepancy");
+      ROS_WARN("Attached body discrepancy");
       continue;
     }
     if(gsr->attached_body_decompositions_.size() != att->getShapes().size())
     {
-      logWarn("Attached body size discrepancy");
+      ROS_WARN("Attached body size discrepancy");
       continue;
     }
     for(unsigned int j = 0; j < att->getShapes().size(); j++)

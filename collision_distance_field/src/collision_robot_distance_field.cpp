@@ -831,7 +831,8 @@ CollisionRobotDistanceField::generateDistanceFieldCacheEntry(const std::string& 
       const moveit::core::LinkModel* link_state = dfce->state_->getLinkModel(link_name);
       if(updated_group_map.find(link_name) != updated_group_map.end()) continue;
       non_group_link_decompositions.push_back(getPosedLinkBodyPointDecomposition(link_state));
-      //ROS_INFO_STREAM("Adding link " << link_name << " with " << non_group_link_decompositions.back()->getCollisionPoints().size() << " points");
+      non_group_link_decompositions.back()->updatePose(dfce->state_->getFrameTransform(link_state->getName()));
+
       std::vector<const moveit::core::AttachedBody*> attached_bodies;
       dfce->state_->getAttachedBodies(attached_bodies, link_state);
       for(unsigned int j = 0; j < attached_bodies.size(); j++) {
@@ -968,14 +969,13 @@ void CollisionRobotDistanceField::updateGroupStateRepresentationState(const move
                                                                       boost::shared_ptr<GroupStateRepresentation>& gsr) const
 {
 
-  for(unsigned int i = 0; i < gsr->dfce_->link_names_.size(); i++) {
-    //const moveit::core::LinkModel* ls = state.getLinkStateVector()[gsr->dfce_->link_state_indices_[i]];
+  for(unsigned int i = 0; i < gsr->dfce_->link_names_.size(); i++)
+  {
     const moveit::core::LinkModel* ls = state.getJointModelGroup(gsr->dfce_->group_name_)->getLinkModel(gsr->dfce_->link_names_[i]);
     if(gsr->dfce_->link_has_geometry_[i])
     {
 
       gsr->link_body_decompositions_[i]->updatePose(state.getFrameTransform(ls->getName()));
-      //gsr->link_body_decompositions_[i]->updatePose(ls->getJointOriginTransform() );
       gsr->gradients_[i].closest_distance = DBL_MAX;
       gsr->gradients_[i].collision = false;
       gsr->gradients_[i].types.assign(gsr->link_body_decompositions_[i]->getCollisionSpheres().size(), NONE);
@@ -988,26 +988,25 @@ void CollisionRobotDistanceField::updateGroupStateRepresentationState(const move
   for(unsigned int i = 0; i < gsr->dfce_->attached_body_names_.size(); i++)
   {
     int link_index = gsr->dfce_->attached_body_link_state_indices_[i];
-    const moveit::core::LinkModel* ls = state.getJointModelGroup(gsr->dfce_->group_name_)->getLinkModel(gsr->dfce_->link_names_[link_index]);
-    //const moveit::core::LinkModel* ls = state.getJointModelGroup(gsr->dfce_->group_name_)->getLinkModels()[link_index];
-    //const moveit::core::LinkModel* ls = state.getLinkStateVector()[gsr->dfce_->attached_body_link_state_indices_[i]];
-    ///std::cerr << "Attached " << dfce->attached_body_names_[i] << " index " << dfce->attached_body_link_state_indices_[i] << std::endl;
-    //const moveit::core::AttachedBody* att = ls->getAttachedBody(gsr->dfce_->attached_body_names_[i]);
     const moveit::core::AttachedBody* att = state.getAttachedBody(gsr->dfce_->attached_body_names_[i]);
     if(!att)
     {
       ROS_WARN("Attached body discrepancy");
       continue;
     }
+
+    // TODO: This logic for checking attached body count might be incorrect
     if(gsr->attached_body_decompositions_.size() != att->getShapes().size())
     {
       ROS_WARN("Attached body size discrepancy");
       continue;
     }
+
     for(unsigned int j = 0; j < att->getShapes().size(); j++)
     {
       gsr->attached_body_decompositions_[i]->updatePose(j, att->getGlobalCollisionBodyTransforms()[j]);
     }
+
     gsr->gradients_[i+gsr->dfce_->link_names_.size()].closest_distance = DBL_MAX;
     gsr->gradients_[i+gsr->dfce_->link_names_.size()].collision = false;
     gsr->gradients_[i+gsr->dfce_->link_names_.size()].types.assign(gsr->attached_body_decompositions_[i]->getCollisionSpheres().size(), NONE);
@@ -1022,7 +1021,8 @@ void CollisionRobotDistanceField::getGroupStateRepresentation(const boost::share
                                                               const moveit::core::RobotState& state,
                                                               boost::shared_ptr<GroupStateRepresentation>& gsr) const
 {
-  if(!dfce->pregenerated_group_state_representation_) {
+  if(!dfce->pregenerated_group_state_representation_)
+  {
     //unsigned int count = 0;
     ros::WallTime b = ros::WallTime::now();
     gsr.reset(new GroupStateRepresentation());
@@ -1031,11 +1031,10 @@ void CollisionRobotDistanceField::getGroupStateRepresentation(const boost::share
     for(unsigned int i = 0; i < dfce->link_names_.size(); i++)
     {
       const moveit::core::LinkModel* ls = state.getJointModelGroup(dfce->group_name_)->getLinkModel(dfce->link_names_[i]);
-      //const moveit::core::LinkModel* ls = state.getLinkStateVector()[dfce->link_state_indices_[i]];
-      if(dfce->link_has_geometry_[i]) {
+      if(dfce->link_has_geometry_[i])
+      {
         gsr->link_body_decompositions_.push_back(getPosedLinkBodySphereDecomposition(ls, dfce->link_body_indices_[i]));
-        //std::cerr << dfce->link_names_[i] << " num " << gsr->link_body_decompositions_.back()->getCollisionSpheres().size() << std::endl;
-        //count += gsr->link_body_decompositions_.back()->getCollisionSpheres().size();
+        gsr->link_body_decompositions_.back()->updatePose(state.getFrameTransform(ls->getName()));
         gsr->gradients_[i].types.resize(gsr->link_body_decompositions_.back()->getCollisionSpheres().size(), NONE);
         gsr->gradients_[i].distances.resize(gsr->link_body_decompositions_.back()->getCollisionSpheres().size(), DBL_MAX);
         gsr->gradients_[i].gradients.resize(gsr->link_body_decompositions_.back()->getCollisionSpheres().size());
@@ -1048,19 +1047,14 @@ void CollisionRobotDistanceField::getGroupStateRepresentation(const boost::share
         gsr->link_body_decompositions_.push_back(emp);
       }
     }
-    //std::cerr << "Total count for group " << dfce->group_name_ << " " << count << std::endl;
-    //std::cerr << "Initial creation for " << dfce->group_name_ << " took " << (b-ros::WallTime::now()).toSec() << std::endl;
   }
   else
   {
-    //ros::WallTime b = ros::WallTime::now();
     gsr.reset(new GroupStateRepresentation(*(dfce->pregenerated_group_state_representation_)));
     gsr->dfce_ = dfce;
-    //std::cerr << "Copy no update took " << (ros::WallTime::now()-b).toSec() << std::endl;
     gsr->gradients_.resize(dfce->link_names_.size()+dfce->attached_body_names_.size());
     for(unsigned int i = 0; i < dfce->link_names_.size(); i++)
     {
-      //const moveit::core::LinkModel* ls = state.getLinkStateVector()[dfce->link_state_indices_[i]];
       const moveit::core::LinkModel* ls = state.getJointModelGroup(dfce->group_name_)->getLinkModel(dfce->link_names_[i]);
       if(dfce->link_has_geometry_[i])
       {

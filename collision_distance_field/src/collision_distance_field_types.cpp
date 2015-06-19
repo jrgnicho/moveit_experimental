@@ -75,7 +75,7 @@ bool collision_detection::getCollisionSphereGradients(const distance_field::Dist
     bool in_bounds;
     double dist = distance_field->getDistanceGradient(p.x(), p.y(), p.z(), gx, gy, gz, in_bounds);
     if(!in_bounds) {
-      logError("Collision sphere point is out of bounds %lf, %lf, %lf", p.x(), p.y(), p.z());
+      ROS_DEBUG("Collision sphere point is out of bounds %lf, %lf, %lf", p.x(), p.y(), p.z());
       return true;
     }
     if(dist < maximum_value) {
@@ -113,7 +113,7 @@ bool collision_detection::getCollisionSphereCollision(const distance_field::Dist
     bool in_bounds;
     double dist = distance_field->getDistanceGradient(p.x(), p.y(), p.z(), gx, gy, gz, in_bounds);
     if(!in_bounds) {
-      logError("Collision sphere point is out of bounds");
+      ROS_DEBUG("Collision sphere point is out of bounds");
       return true;
     }
     if(maximum_value > dist && dist - sphere_list[i].radius_ < tolerance) {
@@ -140,7 +140,7 @@ bool collision_detection::getCollisionSphereCollision(const distance_field::Dist
     bool in_bounds;
     double dist = distance_field->getDistanceGradient(p.x(), p.y(), p.z(), gx, gy, gz, in_bounds);
     if(!in_bounds) {
-      logError("Collision sphere point is out of bounds");
+      ROS_DEBUG("Collision sphere point is out of bounds");
       return true;
     }
     if(maximum_value > dist && dist - sphere_list[i].radius_ < tolerance) {

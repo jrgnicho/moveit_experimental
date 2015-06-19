@@ -37,6 +37,7 @@
 #include <moveit/collision_distance_field/collision_distance_field_types.h>
 #include <geometric_shapes/body_operations.h>
 #include <moveit/distance_field/distance_field.h>
+#include <ros/console.h>
 
 std::vector<collision_detection::CollisionSphere> collision_detection::determineCollisionSpheres(const bodies::Body* body, 
                                                                                                            Eigen::Affine3d& relative_transform)

@@ -122,6 +122,7 @@ void CollisionRobotDistanceField::initialize(const std::map<std::string, std::ve
                                                                                       &planning_scene_->getAllowedCollisionMatrix(),
                                                                                       false);
     ROS_DEBUG_STREAM(__FUNCTION__<<": invoking getGroupStateRepresentation()");
+    state.update(true);
     getGroupStateRepresentation(dfce, state, pregenerated_group_state_representation_map_[jm->getName()]);
   }
 }

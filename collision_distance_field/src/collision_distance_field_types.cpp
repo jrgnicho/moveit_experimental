@@ -37,6 +37,7 @@
 #include <moveit/collision_distance_field/collision_distance_field_types.h>
 #include <geometric_shapes/body_operations.h>
 #include <moveit/distance_field/distance_field.h>
+#include <moveit/distance_field/find_internal_points.h>
 #include <ros/console.h>
 
 std::vector<collision_detection::CollisionSphere> collision_detection::determineCollisionSpheres(const bodies::Body* body, 
@@ -70,29 +71,41 @@ bool collision_detection::getCollisionSphereGradients(const distance_field::Dist
                                                            bool stop_at_first_collision) {
   //assumes gradient is properly initialized
   bool in_collision = false;
-  for(unsigned int i = 0; i < sphere_list.size(); i++) {
+  for(unsigned int i = 0; i < sphere_list.size(); i++)
+  {
     Eigen::Vector3d p = sphere_centers[i];
     double gx, gy, gz;
     bool in_bounds;
     double dist = distance_field->getDistanceGradient(p.x(), p.y(), p.z(), gx, gy, gz, in_bounds);
-    if(!in_bounds) {
+    if(!in_bounds)
+    {
       ROS_DEBUG("Collision sphere point is out of bounds %lf, %lf, %lf", p.x(), p.y(), p.z());
       return true;
     }
-    if(dist < maximum_value) {
-      if(subtract_radii) {
+
+    if(dist < maximum_value)
+    {
+      if(subtract_radii)
+      {
         dist -= sphere_list[i].radius_;
       }
-      if(dist <= tolerance) {
-        if(stop_at_first_collision) {
+
+      if(dist <= tolerance)
+      {
+        if(stop_at_first_collision)
+        {
           return true;
         } 
         in_collision = true;
       }
-      if(dist < gradient.closest_distance) {
+
+      if(dist < gradient.closest_distance)
+      {
         gradient.closest_distance = dist;
       }
-      if(dist < gradient.distances[i]) {
+
+      if(dist < gradient.distances[i])
+      {
         gradient.types[i] = type;
         gradient.distances[i] = dist;
         gradient.gradients[i] = Eigen::Vector3d(gx,gy,gz);
@@ -168,6 +181,7 @@ collision_detection::BodyDecomposition::BodyDecomposition(const shapes::ShapeCon
   body_->setPadding(padding);
   collision_spheres_ = determineCollisionSpheres(body_, relative_cylinder_pose_);
   //relative_collision_points_ = distance_field::determineCollisionPoints(body_, resolution);
+  distance_field::findInternalPointsConvex(*body_,resolution,relative_collision_points_);
   sphere_radii_.resize(collision_spheres_.size());
   for(unsigned int i = 0; i < collision_spheres_.size(); i++) {
     sphere_radii_[i] = collision_spheres_[i].radius_;

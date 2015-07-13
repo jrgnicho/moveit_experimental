@@ -191,7 +191,7 @@ CollisionRobotDistanceField::getDistanceFieldCacheEntry(const std::string& group
   boost::shared_ptr<const DistanceFieldCacheEntry> ret;
   if(!distance_field_cache_entry_)
   {
-    ROS_WARN_STREAM("No current dfce");
+    ROS_DEBUG_STREAM("No current dfce");
     return ret;
   }
   boost::shared_ptr<const DistanceFieldCacheEntry> cur = distance_field_cache_entry_;
@@ -202,7 +202,7 @@ CollisionRobotDistanceField::getDistanceFieldCacheEntry(const std::string& group
   }
   else if(!compareCacheEntryToState(cur, state))
   {
-    ROS_DEBUG("Regenerating distance field as state has changed from last time");
+    // Regenerating distance field as state has changed from last time
     return ret;
   }
   else if(acm && !compareCacheEntryToAllowedCollisionMatrix(cur, *acm))
@@ -662,7 +662,6 @@ CollisionRobotDistanceField::generateDistanceFieldCacheEntry(const std::string& 
 
   //generateAllowedCollisionInformation(dfce);
   dfce->link_names_ = robot_model_->getJointModelGroup(group_name)->getUpdatedLinkModelNames();
-  ROS_DEBUG_STREAM(__FUNCTION__<<" found "<<dfce->link_names_.size()<<" updated links from group "<<group_name);
   std::vector<const moveit::core::AttachedBody*> all_attached_bodies;
   dfce->state_->getAttachedBodies(all_attached_bodies);
   unsigned int att_count = 0;

@@ -355,19 +355,33 @@ bool CollisionWorldDistanceField::getEnvironmentCollisions(const CollisionReques
                                                            const boost::shared_ptr<const distance_field::DistanceField>& env_distance_field,
                                                            boost::shared_ptr<GroupStateRepresentation>& gsr) const
 {
-  for(unsigned int i = 0; i < gsr->dfce_->link_names_.size()+gsr->dfce_->attached_body_names_.size(); i++) {
+  for(unsigned int i = 0; i < gsr->dfce_->link_names_.size()+gsr->dfce_->attached_body_names_.size(); i++)
+  {
+
     bool is_link = i < gsr->dfce_->link_names_.size();
-    if(is_link && !gsr->dfce_->link_has_geometry_[i]) continue;
+    std::string link_name = i < gsr->dfce_->link_names_.size() ? gsr->dfce_->link_names_[i] : "attached";
+    ROS_DEBUG_STREAM("Checking collision environment for '"<<link_name<<"' link");
+    if(is_link && !gsr->dfce_->link_has_geometry_[i])
+    {
+      continue;
+    }
+
     const std::vector<CollisionSphere>* collision_spheres_1;
     const EigenSTL::vector_Vector3d* sphere_centers_1;
-    if(is_link) {
+
+    if(is_link)
+    {
       collision_spheres_1 = &(gsr->link_body_decompositions_[i]->getCollisionSpheres());
       sphere_centers_1 = &(gsr->link_body_decompositions_[i]->getSphereCenters());
-    } else {
+    }
+    else
+    {
       collision_spheres_1 = &(gsr->attached_body_decompositions_[i-gsr->dfce_->link_names_.size()]->getCollisionSpheres());
       sphere_centers_1 = &(gsr->attached_body_decompositions_[i-gsr->dfce_->link_names_.size()]->getSphereCenters());
     }
-    if(req.contacts) {
+
+    if(req.contacts)
+    {
       std::vector<unsigned int> colls;
       bool coll = getCollisionSphereCollision(env_distance_field.get(),
                                               *collision_spheres_1,
@@ -376,19 +390,25 @@ bool CollisionWorldDistanceField::getEnvironmentCollisions(const CollisionReques
                                               0.0,
                                               std::min(req.max_contacts_per_pair, req.max_contacts-res.contact_count),
                                               colls);
-      if(coll) {
+      if(coll)
+      {
         res.collision = true;
-        for(unsigned int j = 0; j < colls.size(); j++) {
+        for(unsigned int j = 0; j < colls.size(); j++)
+        {
           Contact con;
-          if(is_link) {
+          if(is_link)
+          {
             con.pos = gsr->link_body_decompositions_[i]->getSphereCenters()[colls[j]];
             con.body_type_1 = BodyTypes::ROBOT_LINK;
             con.body_name_1 = gsr->dfce_->link_names_[i];
-          } else {
+          }
+          else
+          {
             con.pos = gsr->attached_body_decompositions_[i-gsr->dfce_->link_names_.size()]->getSphereCenters()[colls[j]];
             con.body_type_1 = BodyTypes::ROBOT_ATTACHED;
             con.body_name_1 = gsr->dfce_->attached_body_names_[i-gsr->dfce_->link_names_.size()];
           }
+
           con.body_type_2 = BodyTypes::WORLD_OBJECT;
           con.body_name_2 = "environment";
           res.contact_count++;
@@ -396,18 +416,23 @@ bool CollisionWorldDistanceField::getEnvironmentCollisions(const CollisionReques
           gsr->gradients_[i].types[colls[j]] = ENVIRONMENT;
           //ROS_DEBUG_STREAM("Link " << dfce->link_names_[i] << " sphere " << colls[j] << " in env collision");
         }
+
         gsr->gradients_[i].collision = true;
-        if(res.contact_count >= req.max_contacts) {
+        if(res.contact_count >= req.max_contacts)
+        {
           return true;
         }
       } 
-    } else {
+    }
+    else
+    {
       bool coll = getCollisionSphereCollision(env_distance_field.get(),
                                               *collision_spheres_1,
                                               *sphere_centers_1,
                                               max_propogation_distance_,
                                               false);
-      if(coll) {
+      if(coll)
+      {
         res.collision = true;
         return true;
       } 

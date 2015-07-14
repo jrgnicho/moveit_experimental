@@ -63,15 +63,29 @@ CollisionRobotDistanceField::CollisionRobotDistanceField(const robot_model::Robo
                                                          double scale)
   : CollisionRobot(kmodel, padding, scale)
 {  
-  initialize(link_body_decompositions, size_x, size_y, size_z, use_signed_distance_field, resolution, collision_tolerance, max_propogation_distance);
+  initialize(link_body_decompositions,Eigen::Vector3f(size_x,size_y,size_z), Eigen::Vector3f(0,0,0)
+  ,use_signed_distance_field, resolution, collision_tolerance, max_propogation_distance);
+}
+
+CollisionRobotDistanceField::CollisionRobotDistanceField(const CollisionRobot& col_robot,
+                                                         const Eigen::Vector3f& size,
+                                                         const Eigen::Vector3f& origin,
+                                                         bool use_signed_distance_field,
+                                                         double resolution,
+                                                         double collision_tolerance,
+                                                         double max_propogation_distance)
+  : CollisionRobot(col_robot)
+{
+  std::map<std::string, std::vector<CollisionSphere> > link_body_decompositions;
+  initialize(link_body_decompositions, size, origin, use_signed_distance_field, resolution, collision_tolerance, max_propogation_distance);
 }
 
 CollisionRobotDistanceField::CollisionRobotDistanceField(const CollisionRobotDistanceField& other) :
   CollisionRobot(other)
 {
-  size_x_ = other.size_x_;
-  size_y_ = other.size_y_;
-  size_z_ = other.size_z_;
+  size_ = other.size_;
+  origin_ = other.origin_;
+
   use_signed_distance_field_ = other.use_signed_distance_field_;
   resolution_ = other.resolution_;
   collision_tolerance_ = other.collision_tolerance_;
@@ -84,17 +98,15 @@ CollisionRobotDistanceField::CollisionRobotDistanceField(const CollisionRobotDis
 }
 
 void CollisionRobotDistanceField::initialize(const std::map<std::string, std::vector<CollisionSphere> >& link_body_decompositions,
-                                             double size_x, 
-                                             double size_y,
-                                             double size_z,
+                                             const Eigen::Vector3f& size,
+                                             const Eigen::Vector3f& origin,
                                              bool use_signed_distance_field,
                                              double resolution,
                                              double collision_tolerance,
                                              double max_propogation_distance)
 {
-  size_x_ = size_x;
-  size_y_ = size_y;
-  size_z_ = size_z;
+  size_ = size;
+  origin_ = origin;
   use_signed_distance_field_ = use_signed_distance_field;
   resolution_ = resolution;
   collision_tolerance_ = collision_tolerance;
@@ -116,13 +128,13 @@ void CollisionRobotDistanceField::initialize(const std::map<std::string, std::ve
       updated_group_entry[links[i]] = true;
     }
     in_group_update_map_[jm->getName()] = updated_group_entry;
-    ROS_DEBUG_STREAM(__FUNCTION__<<": invoking generateDistanceFieldCacheEntry()");
+    ROS_DEBUG_STREAM(__FUNCTION__<<": invoking generateDistanceFieldCacheEntry()");    
+    state.updateLinkTransforms();
     boost::shared_ptr<DistanceFieldCacheEntry> dfce = generateDistanceFieldCacheEntry(jm->getName(),
                                                                                       state,
                                                                                       &planning_scene_->getAllowedCollisionMatrix(),
                                                                                       false);
     ROS_DEBUG_STREAM(__FUNCTION__<<": invoking getGroupStateRepresentation()");
-    state.updateLinkTransforms();
     getGroupStateRepresentation(dfce, state, pregenerated_group_state_representation_map_[jm->getName()]);
   }
 }
@@ -860,30 +872,15 @@ CollisionRobotDistanceField::generateDistanceFieldCacheEntry(const std::string& 
         non_group_attached_body_decompositions.push_back(getAttachedBodyPointDecomposition(attached_bodies[j], resolution_));
       }
     }
-    //ros::WallTime before_create = ros::WallTime::now();
-    if(use_signed_distance_field_)
-    {
-      dfce->distance_field_.reset(new distance_field::PropagationDistanceField(size_x_,
-                                                                               size_y_, 
-                                                                               size_z_, 
-                                                                               resolution_, 
-                                                                               0,
-                                                                               0,
-                                                                               0,
-                                                                               max_propogation_distance_, true));
-    }
-    else
-    {
+    dfce->distance_field_.reset(new distance_field::PropagationDistanceField(size_.x(),
+                                                                             size_.y(),
+                                                                             size_.z(),
+                                                                             resolution_,
+                                                                             origin_.x(),
+                                                                             origin_.y(),
+                                                                             origin_.z(),
+                                                                             max_propogation_distance_, use_signed_distance_field_));
 
-      dfce->distance_field_.reset(new distance_field::PropagationDistanceField(size_x_,
-                                                                               size_y_, 
-                                                                               size_z_, 
-                                                                               resolution_, 
-                                                                               0,
-                                                                               0,
-                                                                               0,
-                                                                               max_propogation_distance_, false));
-    }
     //ROS_INFO_STREAM("Creation took " << (ros::WallTime::now()-before_create).toSec());
     //TODO - deal with AllowedCollisionMatrix
     //now we need to actually set the points
@@ -949,7 +946,7 @@ void CollisionRobotDistanceField::addLinkBodyDecompositions(double resolution,
       continue;
     }
 
-    BodyDecompositionPtr bd(new BodyDecomposition(link_models[i]->getShapes().front(), resolution, resolution));
+    BodyDecompositionPtr bd(new BodyDecomposition(link_models[i]->getShapes().front(), resolution, getLinkPadding(link_models[i]->getName()) ));
     ROS_DEBUG("Generated model for %s", link_models[i]->getName().c_str());
 
     if(link_spheres.find(link_models[i]->getName()) != link_spheres.end())

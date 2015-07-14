@@ -63,6 +63,12 @@ public:
 
   CollisionRobotDistanceField(const robot_model::RobotModelConstPtr& kmodel);
 
+  CollisionRobotDistanceField(const CollisionRobot& col_robot,const Eigen::Vector3f& size,const Eigen::Vector3f& origin,
+                                                           bool use_signed_distance_field,
+                                                           double resolution,
+                                                           double collision_tolerance,
+                                                           double max_propogation_distance);
+
   CollisionRobotDistanceField(const robot_model::RobotModelConstPtr& kmodel, 
                               const std::map<std::string, std::vector<CollisionSphere> >& link_body_decompositions,
                               double size_x = DEFAULT_SIZE_X, 
@@ -78,9 +84,8 @@ public:
   CollisionRobotDistanceField(const CollisionRobotDistanceField& other); 
 
   void initialize(const std::map<std::string, std::vector<CollisionSphere> >& link_body_decompositions,
-                  double size_x, 
-                  double size_y,
-                  double size_z,
+                  const Eigen::Vector3f& size,
+                  const Eigen::Vector3f& origin,
                   bool use_signed_distance_field,
                   double resolution,
                   double collision_tolerance,
@@ -256,9 +261,11 @@ protected:
   virtual void updatedPaddingOrScaling(const std::vector<std::string> &links)
   {};
   
-  double size_x_;
-  double size_y_;
-  double size_z_;
+//  double size_x_;
+//  double size_y_;
+//  double size_z_;
+  Eigen::Vector3f size_;
+  Eigen::Vector3f origin_;
   bool use_signed_distance_field_;
   double resolution_;
   double collision_tolerance_;

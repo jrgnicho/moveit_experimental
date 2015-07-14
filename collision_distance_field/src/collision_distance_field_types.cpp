@@ -181,7 +181,6 @@ collision_detection::BodyDecomposition::BodyDecomposition(const shapes::ShapeCon
   body_->setPose(Eigen::Affine3d::Identity());
   body_->setPadding(padding);
   collision_spheres_ = determineCollisionSpheres(body_, relative_cylinder_pose_);
-  //relative_collision_points_ = distance_field::determineCollisionPoints(body_, resolution);
   distance_field::findInternalPointsConvex(*body_,resolution,relative_collision_points_);
   sphere_radii_.resize(collision_spheres_.size());
   for(unsigned int i = 0; i < collision_spheres_.size(); i++) {

@@ -155,6 +155,9 @@ PosedBodySphereDecompositionVectorPtr getAttachedBodySphereDecomposition(const r
 PosedBodyPointDecompositionVectorPtr getAttachedBodyPointDecomposition(const robot_state::AttachedBody* att,
                                                                        double resolution);
 
+void getBodySphereVisualizationMarkers(boost::shared_ptr<collision_detection::GroupStateRepresentation> gsr
+                                  ,std::string reference_frame_, ros::Time t, visualization_msgs::MarkerArray& body_marker_array);
+
 
 }
 #endif

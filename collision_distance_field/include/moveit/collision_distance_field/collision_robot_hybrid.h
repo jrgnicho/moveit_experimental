@@ -77,7 +77,8 @@ public:
                                     double collision_tolerance,
                                     double max_propogation_distance)
   {
-    crobot_distance_->initialize(link_body_decompositions, size_x, size_y, size_z, use_signed_distance_field, resolution, collision_tolerance, max_propogation_distance);
+    crobot_distance_->initialize(link_body_decompositions,Eigen::Vector3f(size_x,size_y,size_z),Eigen::Vector3f(0,0,0),
+                                 use_signed_distance_field, resolution, collision_tolerance, max_propogation_distance);
   }
 
   void checkSelfCollisionDistanceField(const collision_detection::CollisionRequest &req, 

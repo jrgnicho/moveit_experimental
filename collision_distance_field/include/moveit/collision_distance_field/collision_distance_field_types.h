@@ -229,8 +229,6 @@ public:
   //the collision spheres, and the posed collision points
   void updatePose(const Eigen::Affine3d& linkTransform);
 
-  void updateSpheresPose(const Eigen::Affine3d& linkTransform);
-
 protected:
 
   BodyDecompositionConstPtr body_decomposition_;

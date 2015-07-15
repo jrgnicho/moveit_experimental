@@ -144,9 +144,9 @@ public:
     return distance_field_cache_entry_->distance_field_;
   }
 
-  // boost::shared_ptr<const CollisionRobotDistanceField::GroupStateRepresentation> getLastGroupStateRepresentation() const {
-  //   return last_gsr_;
-  // }
+  boost::shared_ptr<const collision_detection::GroupStateRepresentation> getLastGroupStateRepresentation() const {
+     return last_gsr_;
+  }
 
   void getCollisionGradients(const CollisionRequest &req, 
                              CollisionResult &res, 
@@ -194,7 +194,7 @@ protected:
 
   mutable boost::mutex update_cache_lock_;
   boost::shared_ptr<DistanceFieldCacheEntry> distance_field_cache_entry_;
-  //boost::shared_ptr<CollisionRobotDistanceField::GroupStateRepresentation> last_gsr_;  
+  boost::shared_ptr<collision_detection::GroupStateRepresentation> last_gsr_;
   World::ObserverHandle observer_handle_;
 };
 

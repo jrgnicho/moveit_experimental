@@ -157,7 +157,7 @@ void CollisionWorldDistanceField::checkCollision(const CollisionRequest &req,
     return;
   }
 
-  //(const_cast<CollisionWorldDistanceField*>(this))->last_gsr_ = gsr;
+  (const_cast<CollisionWorldDistanceField*>(this))->last_gsr_ = gsr;
 }
 
 void CollisionWorldDistanceField::checkCollision(const CollisionRequest &req, 
@@ -207,7 +207,7 @@ void CollisionWorldDistanceField::checkCollision(const CollisionRequest &req,
     return;
   }
 
-  //(const_cast<CollisionWorldDistanceField*>(this))->last_gsr_ = gsr;
+  (const_cast<CollisionWorldDistanceField*>(this))->last_gsr_ = gsr;
 }
 
 void CollisionWorldDistanceField::checkRobotCollision(const CollisionRequest &req, 
@@ -239,7 +239,8 @@ void CollisionWorldDistanceField::checkRobotCollision(const CollisionRequest &re
       cdr.updateGroupStateRepresentationState(state, gsr);
     }
     getEnvironmentCollisions(req, res, env_distance_field, gsr);
-    //(const_cast<CollisionWorldDistanceField*>(this))->last_gsr_ = gsr;
+    (const_cast<CollisionWorldDistanceField*>(this))->last_gsr_ = gsr;
+
     //checkRobotCollisionHelper(req, res, robot, state, &acm);
   }
   catch(const std::bad_cast& e)
@@ -281,7 +282,8 @@ void CollisionWorldDistanceField::checkRobotCollision(const CollisionRequest &re
       cdr.updateGroupStateRepresentationState(state, gsr);
     }
     getEnvironmentCollisions(req, res, env_distance_field, gsr);
-    //(const_cast<CollisionWorldDistanceField*>(this))->last_gsr_ = gsr;
+    (const_cast<CollisionWorldDistanceField*>(this))->last_gsr_ = gsr;
+
     //checkRobotCollisionHelper(req, res, robot, state, &acm);
   }
   catch(const std::bad_cast& e)
@@ -318,6 +320,8 @@ void CollisionWorldDistanceField::getCollisionGradients(const CollisionRequest &
     ROS_ERROR_STREAM("Could not cast CollisionRobot to CollisionRobotDistanceField, "<<e.what());
     return;
   }
+
+  (const_cast<CollisionWorldDistanceField*>(this))->last_gsr_ = gsr;
 }
 
 void CollisionWorldDistanceField::getAllCollisions(const CollisionRequest &req, 
@@ -348,6 +352,8 @@ void CollisionWorldDistanceField::getAllCollisions(const CollisionRequest &req,
     ROS_ERROR_STREAM("Could not cast CollisionRobot to CollisionRobotDistanceField, "<<e.what());
     return;
   }
+
+  (const_cast<CollisionWorldDistanceField*>(this))->last_gsr_ = gsr;
 }
 
 bool CollisionWorldDistanceField::getEnvironmentCollisions(const CollisionRequest& req,
@@ -430,7 +436,7 @@ bool CollisionWorldDistanceField::getEnvironmentCollisions(const CollisionReques
                                               *collision_spheres_1,
                                               *sphere_centers_1,
                                               max_propogation_distance_,
-                                              false);
+                                              0.0);
       if(coll)
       {
         res.collision = true;

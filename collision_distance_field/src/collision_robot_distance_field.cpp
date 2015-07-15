@@ -742,7 +742,6 @@ CollisionRobotDistanceField::generateDistanceFieldCacheEntry(const std::string& 
 
         std::vector<const moveit::core::AttachedBody*> link_attached_bodies;
         state.getAttachedBodies(link_attached_bodies,link_state);
-        //link_state->getAttachedBodies(link_attached_bodies);
         for(unsigned int j = 0; j < link_attached_bodies.size(); j++, att_count++)
         {
           dfce->attached_body_names_.push_back(link_attached_bodies[j]->getName());
@@ -862,6 +861,8 @@ CollisionRobotDistanceField::generateDistanceFieldCacheEntry(const std::string& 
       {
         continue;
       }
+
+      // populating array with link that are not part of the planning group
       non_group_link_decompositions.push_back(getPosedLinkBodyPointDecomposition(link_state));
       non_group_link_decompositions.back()->updatePose(dfce->state_->getFrameTransform(link_state->getName()));
 

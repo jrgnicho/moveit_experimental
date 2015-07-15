@@ -121,22 +121,27 @@ bool collision_detection::getCollisionSphereCollision(const distance_field::Dist
                                                            double maximum_value,
                                                            double tolerance)
 {
-  for(unsigned int i = 0; i < sphere_list.size(); i++) {
+  for(unsigned int i = 0; i < sphere_list.size(); i++)
+  {
     Eigen::Vector3d p = sphere_centers[i];
     Eigen::Vector3d grad;
     bool in_bounds = true;
     double dist = distance_field->getDistanceGradient(p.x(), p.y(), p.z(), grad.x(), grad.y(), grad.z(), in_bounds);
-    if(!in_bounds && grad.norm() > 0) {
+
+    if(!in_bounds && grad.norm() > 0)
+    {
       ROS_DEBUG("Collision sphere point is out of bounds");
       return true;
     }
-    if(maximum_value > dist && dist - sphere_list[i].radius_ < tolerance) {
+
+    if( (maximum_value > dist) && (dist - sphere_list[i].radius_ < tolerance ))
+    {
       //ROS_INFO_STREAM("Point " << p.x() << " " << p.y() << " " << p.z() << " " << dist << " " << sphere_list[i].radius_);
       return true;
     }
   }
-  return false;
 
+  return false;
 }
 
 bool collision_detection::getCollisionSphereCollision(const distance_field::DistanceField* distance_field,
@@ -158,8 +163,9 @@ bool collision_detection::getCollisionSphereCollision(const distance_field::Dist
       ROS_DEBUG("Collision sphere point is out of bounds");
       return true;
     }
-    if(maximum_value > dist && dist - sphere_list[i].radius_ < tolerance) {
-      if(num_coll == 0) {
+    if(maximum_value > dist && (dist - sphere_list[i].radius_ < tolerance)) {
+      if(num_coll == 0)
+      {
         return true;
       }
       colls.push_back(i);

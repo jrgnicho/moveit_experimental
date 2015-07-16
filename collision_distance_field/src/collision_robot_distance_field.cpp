@@ -73,11 +73,13 @@ CollisionRobotDistanceField::CollisionRobotDistanceField(const CollisionRobot& c
                                                          bool use_signed_distance_field,
                                                          double resolution,
                                                          double collision_tolerance,
-                                                         double max_propogation_distance)
+                                                         double max_propogation_distance,
+                                                         double padding)
   : CollisionRobot(col_robot)
 {
   std::map<std::string, std::vector<CollisionSphere> > link_body_decompositions;
   initialize(link_body_decompositions, size, origin, use_signed_distance_field, resolution, collision_tolerance, max_propogation_distance);
+  setPadding(padding);
 }
 
 CollisionRobotDistanceField::CollisionRobotDistanceField(const CollisionRobotDistanceField& other) :
@@ -159,9 +161,7 @@ void CollisionRobotDistanceField::generateCollisionCheckingStructures(const std:
     dfce = new_dfce;
 
   } 
-  //ros::WallTime n = ros::WallTime::now();
   getGroupStateRepresentation(dfce,state, gsr);
-  //ROS_INFO_STREAM("Gsr creation " << (ros::WallTime::now()-n).toSec());
 }
 
 void CollisionRobotDistanceField::checkSelfCollisionHelper(const collision_detection::CollisionRequest& req,
@@ -835,7 +835,6 @@ CollisionRobotDistanceField::generateDistanceFieldCacheEntry(const std::string& 
         unsigned int current_index = start_index + j;
         dfce->state_values_.push_back(state.getVariablePosition(start_index + j));
         dfce->state_check_indices_.push_back(dfce->state_values_.size()-1);
-        //std::cerr << "Pushing back " << state.getJointStateVector()[i]->getName() << " index " << dfce->state_values_.size()-1 << std::endl;
       }
     }
     else
@@ -898,14 +897,9 @@ CollisionRobotDistanceField::generateDistanceFieldCacheEntry(const std::string& 
                         non_group_attached_body_decompositions[i]->getCollisionPoints().begin(),
                         non_group_attached_body_decompositions[i]->getCollisionPoints().end());
     }
-    //ROS_INFO_STREAM("Pre-dim " << dfce->distance_field_->getNumCells(distance_field::VoxelGrid<distance_field::PropDistanceFieldVoxel>::DIM_X));
-    //ros::WallTime before_add = ros::WallTime::now();  
+
     dfce->distance_field_->addPointsToField(all_points);
     
-    //ROS_DEBUG_STREAM("Adding points took " << (ros::WallTime::now()-before_add).toSec());
-    //ROS_DEBUG_STREAM("Total is " << (ros::WallTime::now()-n).toSec());
-    //ROS_DEBUG_STREAM("Pre-dim " << dfce->distance_field_->getNumCells(distance_field::VoxelGrid<distance_field::PropDistanceFieldVoxel>::DIM_X));
-    //ROS_DEBUG_STREAM("Creation took " << (ros::WallTime::now()-n));
   }
   return dfce;
 }
@@ -915,13 +909,17 @@ void CollisionRobotDistanceField::addLinkBodyDecompositions(double resolution)
   const std::vector<const moveit::core::LinkModel*>& link_models = robot_model_->getLinkModelsWithCollisionGeometry();
   for(unsigned int i = 0; i < link_models.size(); i++)
   {
-    if(!link_models[i]->getShapes().front())
+    if(link_models[i]->getShapes().empty())
     {
       ROS_WARN("No collision geometry for link model %s though there should be", link_models[i]->getName().c_str());
       continue;
     }
+
     ROS_DEBUG("Generating model for %s", link_models[i]->getName().c_str());
-    BodyDecompositionConstPtr bd(new BodyDecomposition(link_models[i]->getShapes().front(), resolution, resolution));
+    BodyDecompositionConstPtr bd(new BodyDecomposition(link_models[i]->getShapes(),
+                                                       link_models[i]->getCollisionOriginTransforms(),
+                                                       resolution,
+                                                       getLinkPadding(link_models[i]->getName())));
     link_body_decomposition_vector_.push_back(bd);
     link_body_decomposition_index_map_[link_models[i]->getName()] = link_body_decomposition_vector_.size()-1;
   }
@@ -935,11 +933,6 @@ void CollisionRobotDistanceField::addLinkBodyDecompositions(double resolution,
 
   for(unsigned int i = 0; i < link_models.size(); i++)
   {
-    if(!link_models[i]->getShapes().front())
-    {
-      ROS_WARN("No collision geometry for link model %s though there should be", link_models[i]->getName().c_str());
-      continue;
-    }
 
     if(link_models[i]->getShapes().empty())
     {
@@ -947,7 +940,11 @@ void CollisionRobotDistanceField::addLinkBodyDecompositions(double resolution,
       continue;
     }
 
-    BodyDecompositionPtr bd(new BodyDecomposition(link_models[i]->getShapes().front(), resolution, getLinkPadding(link_models[i]->getName()) ));
+    BodyDecompositionPtr bd(new BodyDecomposition(link_models[i]->getShapes(),
+                                                       link_models[i]->getCollisionOriginTransforms(),
+                                                       resolution,
+                                                       getLinkPadding(link_models[i]->getName())));
+
     ROS_DEBUG("Generated model for %s", link_models[i]->getName().c_str());
 
     if(link_spheres.find(link_models[i]->getName()) != link_spheres.end())
@@ -1104,14 +1101,15 @@ bool CollisionRobotDistanceField::compareCacheEntryToState(const boost::shared_p
 {
   std::vector<double> new_state_values;
   state.copyJointGroupPositions(dfce->group_name_,new_state_values);
-  if(dfce->state_values_.size() != new_state_values.size()) {
+  if(dfce->state_values_.size() != new_state_values.size())
+  {
     logError("State value size mismatch");
     return false;
   }
-  for(unsigned int i = 0; i < dfce->state_check_indices_.size(); i++) {
-    if(fabs(dfce->state_values_[dfce->state_check_indices_[i]]-new_state_values[dfce->state_check_indices_[i]]) > .0001) {
-      // std::cerr << "Relevant state value changed from " << dfce->state_values_[dfce->state_check_indices_[i]] << " to " 
-      //           << new_state_values[dfce->state_check_indices_[i]] << std::endl;
+  for(unsigned int i = 0; i < dfce->state_check_indices_.size(); i++)
+  {
+    if(fabs(dfce->state_values_[dfce->state_check_indices_[i]]-new_state_values[dfce->state_check_indices_[i]]) > .0001)
+    {
       return false;
     }
   }

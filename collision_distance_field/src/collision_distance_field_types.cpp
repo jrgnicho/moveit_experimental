@@ -183,21 +183,109 @@ bool collision_detection::getCollisionSphereCollision(const distance_field::Dist
 
 collision_detection::BodyDecomposition::BodyDecomposition(const shapes::ShapeConstPtr& shape, double resolution, double padding)
 {
-  body_ = bodies::createBodyFromShape(shape.get()); //unpadded
+  std::vector<shapes::ShapeConstPtr> shapes;
+  EigenSTL::vector_Affine3d poses(1,Eigen::Affine3d::Identity());
+
+  shapes.push_back(shape);
+  init(shapes,poses,resolution,padding);
+}
+
+collision_detection::BodyDecomposition::BodyDecomposition(const std::vector<shapes::ShapeConstPtr>& shapes,
+                                                          const EigenSTL::vector_Affine3d& poses, double resolution, double padding)
+{
+  init(shapes,poses,resolution,padding);
+}
+
+void collision_detection::BodyDecomposition::init(const std::vector<shapes::ShapeConstPtr>& shapes,
+                    const EigenSTL::vector_Affine3d& poses,
+                    double resolution,
+                    double padding)
+{
+  bodies_.clear();
+  for(unsigned int i = 0; i < shapes.size();i++)
+  {
+    bodies_.addBody(shapes[i]->clone(),poses[i],padding);
+  }
+
+  // collecting collision spheres
+  collision_spheres_.clear();
+  relative_collision_points_.clear();
+  std::vector<CollisionSphere> body_spheres;
+  EigenSTL::vector_Vector3d body_collision_points;
+  for(unsigned int i = 0; i < bodies_.getCount(); i++)
+  {
+    body_spheres = determineCollisionSpheres(bodies_.getBody(i),relative_cylinder_pose_);
+    collision_spheres_.insert(collision_spheres_.end(),body_spheres.begin(),body_spheres.end());
+
+    distance_field::findInternalPointsConvex(*bodies_.getBody(i),resolution,body_collision_points);
+    relative_collision_points_.insert(relative_collision_points_.end(),body_collision_points.begin(), body_collision_points.end());
+
+    // completing unpopulated portions of the geometry with resolution size spheres
+/*    std::vector<CollisionSphere> filling_spheres;
+    bool add_sphere = false;
+    CollisionSphere sphere(Eigen::Vector3d::Zero(),resolution);
+    for(unsigned int k = 0; k < body_collision_points.size(); k++)
+    {
+      add_sphere = true;
+      //sphere.relative_vec_ = bodies_.getBody(i)->getPose() *  body_collision_points[k];
+      sphere.relative_vec_ = body_collision_points[k];
+      Eigen::Vector3d& v = sphere.relative_vec_;
+
+      for(unsigned int j = 0; j < body_spheres.size(); j++)
+      {
+        double dist = (v - body_spheres[j].relative_vec_).norm();
+        // check if there is overlap between spheres
+        if(dist < (sphere.radius_ + body_spheres[j].radius_))
+        {
+          add_sphere = false;
+          break;
+        }
+      }
+
+      if(add_sphere)
+      {
+        filling_spheres.push_back(sphere);
+      }
+
+    }
+
+    if(!filling_spheres.empty())
+    {
+      collision_spheres_.insert(collision_spheres_.end(),filling_spheres.begin(), filling_spheres.end());
+    }*/
+  }
+
+
+
+/*  body_ = bodies::createBodyFromShape(shape.get()); //unpadded
   body_->setPose(Eigen::Affine3d::Identity());
   body_->setPadding(padding);
-  collision_spheres_ = determineCollisionSpheres(body_, relative_cylinder_pose_);
-  distance_field::findInternalPointsConvex(*body_,resolution,relative_collision_points_);
+  collision_spheres_ = determineCollisionSpheres(body_, relative_cylinder_pose_);*/
+
+  //distance_field::findInternalPointsConvex(*body_,resolution,relative_collision_points_);
+
   sphere_radii_.resize(collision_spheres_.size());
-  for(unsigned int i = 0; i < collision_spheres_.size(); i++) {
+  for(unsigned int i = 0; i < collision_spheres_.size(); i++)
+  {
     sphere_radii_[i] = collision_spheres_[i].radius_;
   }
-  body_->computeBoundingSphere(relative_bounding_sphere_);
+
+  // computing bounding sphere
+  std::vector<bodies::BoundingSphere> bounding_spheres(bodies_.getCount());
+  for(unsigned int i = 0; i < bodies_.getCount(); i++)
+  {
+    bodies_.getBody(i)->computeBoundingSphere(bounding_spheres[i]);
+  }
+  bodies::mergeBoundingSpheres(bounding_spheres,relative_bounding_sphere_);
+
+  //body_->computeBoundingSphere(relative_bounding_sphere_);
+
+  ROS_DEBUG_STREAM("BodyDecomposition generated "<<collision_spheres_.size()<<" collision spheres out of "<<shapes.size()<<" shapes");
 }
 
 collision_detection::BodyDecomposition::~BodyDecomposition()
 {
-  delete body_;
+  bodies_.clear();
 }
 
 collision_detection::PosedBodyPointDecomposition::PosedBodyPointDecomposition(const BodyDecompositionConstPtr& body_decomposition) 

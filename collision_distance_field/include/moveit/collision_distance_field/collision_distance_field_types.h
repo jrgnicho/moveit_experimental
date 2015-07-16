@@ -143,9 +143,14 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     
-  BodyDecomposition(const shapes::ShapeConstPtr& shape, 
+  BodyDecomposition(const shapes::ShapeConstPtr& shape,
                     double resolution, 
                     double padding = 0.01);
+
+  BodyDecomposition(const std::vector<shapes::ShapeConstPtr>& shapes,
+                    const EigenSTL::vector_Affine3d& poses,
+                    double resolution,
+                    double padding);
 
   ~BodyDecomposition();
 
@@ -173,10 +178,15 @@ public:
     return relative_collision_points_;
   }
 
-/*  const bodies::Body* getBody() const
+  const bodies::Body* getBody(unsigned int i) const
   {
-    return body_;
-  }*/
+    return bodies_.getBody(i);
+  }
+
+  unsigned int getBodiesCount()
+  {
+    return bodies_.getCount();
+  }
 
   Eigen::Affine3d getRelativeCylinderPose() const {
     return relative_cylinder_pose_;
@@ -186,8 +196,15 @@ public:
     return relative_bounding_sphere_;
   }
 
-private:
-  bodies::Body* body_;
+protected:
+
+  void init(const std::vector<shapes::ShapeConstPtr>& shapes,
+            const EigenSTL::vector_Affine3d& poses,
+            double resolution,
+            double padding);
+
+protected:
+  bodies::BodyVector bodies_;
 
   bodies::BoundingSphere relative_bounding_sphere_;
   std::vector<double> sphere_radii_;

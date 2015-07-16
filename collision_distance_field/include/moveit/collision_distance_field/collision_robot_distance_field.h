@@ -67,7 +67,8 @@ public:
                                                            bool use_signed_distance_field,
                                                            double resolution,
                                                            double collision_tolerance,
-                                                           double max_propogation_distance);
+                                                           double max_propogation_distance,
+                                                           double padding);
 
   CollisionRobotDistanceField(const robot_model::RobotModelConstPtr& kmodel, 
                               const std::map<std::string, std::vector<CollisionSphere> >& link_body_decompositions,

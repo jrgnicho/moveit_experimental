@@ -393,7 +393,7 @@ bool CollisionWorldDistanceField::getEnvironmentCollisions(const CollisionReques
                                               *collision_spheres_1,
                                               *sphere_centers_1,
                                               max_propogation_distance_,
-                                              0.0,
+                                              collision_tolerance_,
                                               std::min(req.max_contacts_per_pair, req.max_contacts-res.contact_count),
                                               colls);
       if(coll)
@@ -436,7 +436,7 @@ bool CollisionWorldDistanceField::getEnvironmentCollisions(const CollisionReques
                                               *collision_spheres_1,
                                               *sphere_centers_1,
                                               max_propogation_distance_,
-                                              0.0);
+                                              collision_tolerance_);
       if(coll)
       {
         res.collision = true;
@@ -477,7 +477,7 @@ bool CollisionWorldDistanceField::getEnvironmentProximityGradients(const boost::
                                             *sphere_centers_1,
                                             gsr->gradients_[i],
                                             ENVIRONMENT,
-                                            0.0,
+                                            collision_tolerance_,
                                             false,
                                             max_propogation_distance_,
                                             false);

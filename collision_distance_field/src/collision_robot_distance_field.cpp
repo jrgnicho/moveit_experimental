@@ -40,6 +40,7 @@
 #include <moveit/distance_field/propagation_distance_field.h>
 #include <ros/console.h>
 #include <ros/assert.h>
+#include <eigen_conversions/eigen_msg.h>
 
 namespace collision_detection
 {
@@ -291,7 +292,7 @@ bool CollisionRobotDistanceField::getSelfCollisions(const collision_detection::C
                                               *collision_spheres_1,
                                               *sphere_centers_1,
                                               max_propogation_distance_,
-                                              0.0,
+                                              collision_tolerance_,
                                               std::min(req.max_contacts_per_pair, req.max_contacts-res.contact_count),
                                               colls);
       if(coll)
@@ -339,7 +340,7 @@ bool CollisionRobotDistanceField::getSelfCollisions(const collision_detection::C
                                               *collision_spheres_1,
                                               *sphere_centers_1,
                                               max_propogation_distance_,
-                                              0.0);
+                                              collision_tolerance_);
       if(coll)
       {
         ROS_DEBUG("Link %s in self collision", gsr->dfce_->link_names_[i].c_str());
@@ -383,7 +384,7 @@ bool CollisionRobotDistanceField::getSelfProximityGradients(boost::shared_ptr<Gr
                                             *sphere_centers_1,
                                             gsr->gradients_[i],
                                             collision_detection::SELF,
-                                            0.0,
+                                            collision_tolerance_,
                                             false,
                                             max_propogation_distance_,
                                             false);
@@ -923,6 +924,75 @@ void CollisionRobotDistanceField::addLinkBodyDecompositions(double resolution)
     link_body_decomposition_vector_.push_back(bd);
     link_body_decomposition_index_map_[link_models[i]->getName()] = link_body_decomposition_vector_.size()-1;
   }
+}
+
+void CollisionRobotDistanceField::createCollisionModelMarker(const moveit::core::RobotState& state,
+                                                             visualization_msgs::MarkerArray& model_markers) const
+{
+  // creating colors
+  std_msgs::ColorRGBA robot_color;
+  robot_color.r = 0;
+  robot_color.b = 0.8f;
+  robot_color.g = 0;
+  robot_color.a = 0.5;
+
+  std_msgs::ColorRGBA world_links_color;
+  world_links_color.r = 1;
+  world_links_color.g = 1;
+  world_links_color.b = 0;
+  world_links_color.a = 0.5;
+
+  // creating sphere marker
+  visualization_msgs::Marker sphere_marker;
+  sphere_marker.header.frame_id = robot_model_->getRootLinkName();
+  sphere_marker.header.stamp = ros::Time(0);
+  sphere_marker.ns = distance_field_cache_entry_->group_name_ + "_sphere_decomposition";
+  sphere_marker.id = 0;
+  sphere_marker.type = visualization_msgs::Marker::SPHERE;
+  sphere_marker.action = visualization_msgs::Marker::ADD;
+  sphere_marker.pose.orientation.x = 0;
+  sphere_marker.pose.orientation.y = 0;
+  sphere_marker.pose.orientation.z = 0;
+  sphere_marker.pose.orientation.w = 1;
+  sphere_marker.color = robot_color;
+  sphere_marker.lifetime = ros::Duration(0);
+
+
+  unsigned int id = 0;
+  const std::vector<const moveit::core::LinkModel*>& link_models = robot_model_->getLinkModelsWithCollisionGeometry();
+  const moveit::core::JointModelGroup* joint_group = state.getJointModelGroup(distance_field_cache_entry_->group_name_);
+  const std::vector<std::string>& group_link_names = joint_group->getLinkModelNames();
+
+  std::map<std::string,unsigned int>::const_iterator map_iter;
+  for(map_iter = link_body_decomposition_index_map_.begin() ; map_iter != link_body_decomposition_index_map_.end() ; map_iter++)
+  {
+    const std::string& link_name = map_iter->first;
+    unsigned int link_index = map_iter->second;
+
+    // selecting color
+    if(std::find(group_link_names.begin(),group_link_names.end(),link_name) != group_link_names.end())
+    {
+      sphere_marker.color = robot_color;
+    }
+    else
+    {
+      sphere_marker.color = world_links_color;
+    }
+
+    collision_detection::PosedBodySphereDecompositionPtr sphere_representation(new PosedBodySphereDecomposition(link_body_decomposition_vector_[link_index]));
+    sphere_representation->updatePose(state.getGlobalLinkTransform(link_name));
+    for(unsigned int j = 0; j < sphere_representation->getCollisionSpheres().size();j++)
+    {
+      tf::pointEigenToMsg(sphere_representation->getSphereCenters()[j],sphere_marker.pose.position);
+      sphere_marker.scale.x = sphere_marker.scale.y = sphere_marker.scale.z = 2*sphere_representation->getCollisionSpheres()[j].radius_;
+      sphere_marker.id = id;
+      id++;
+
+      model_markers.markers.push_back(sphere_marker);
+    }
+
+  }
+
 }
 
 void CollisionRobotDistanceField::addLinkBodyDecompositions(double resolution,

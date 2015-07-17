@@ -170,6 +170,9 @@ public:
     logWarn("Not implemented");
   };
   
+  void createCollisionModelMarker(const moveit::core::RobotState& state,
+                                  visualization_msgs::MarkerArray& model_markers) const;
+
   virtual double distanceSelf(const moveit::core::RobotState &state) const
   {
     return 0.0;
@@ -262,9 +265,7 @@ protected:
   virtual void updatedPaddingOrScaling(const std::vector<std::string> &links)
   {};
   
-//  double size_x_;
-//  double size_y_;
-//  double size_z_;
+
   Eigen::Vector3f size_;
   Eigen::Vector3f origin_;
   bool use_signed_distance_field_;

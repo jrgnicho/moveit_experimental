@@ -129,13 +129,13 @@ void getBodySphereVisualizationMarkers(boost::shared_ptr<const collision_detecti
   robot_color.r = 0;
   robot_color.b = 0.8f;
   robot_color.g = 0;
-  robot_color.a = 1;
+  robot_color.a = 0.5;
 
   std_msgs::ColorRGBA attached_color;
   attached_color.r = 1;
   attached_color.g = 1;
   attached_color.b = 0;
-  attached_color.a = 1;
+  attached_color.a = 0.5;
 
   // creating sphere marker
   visualization_msgs::Marker sphere_marker;

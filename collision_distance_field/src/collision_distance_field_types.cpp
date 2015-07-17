@@ -40,6 +40,8 @@
 #include <moveit/distance_field/find_internal_points.h>
 #include <ros/console.h>
 
+const static double RESOLUTION_SCALE = 2.0;
+
 std::vector<collision_detection::CollisionSphere> collision_detection::determineCollisionSpheres(const bodies::Body* body, 
                                                                                                            Eigen::Affine3d& relative_transform)
 {
@@ -68,8 +70,10 @@ bool collision_detection::getCollisionSphereGradients(const distance_field::Dist
                                                            double tolerance, 
                                                            bool subtract_radii, 
                                                            double maximum_value,
-                                                           bool stop_at_first_collision) {
+                                                           bool stop_at_first_collision)
+{
   //assumes gradient is properly initialized
+
   bool in_collision = false;
   for(unsigned int i = 0; i < sphere_list.size(); i++)
   {
@@ -121,6 +125,7 @@ bool collision_detection::getCollisionSphereCollision(const distance_field::Dist
                                                            double maximum_value,
                                                            double tolerance)
 {
+
   for(unsigned int i = 0; i < sphere_list.size(); i++)
   {
     Eigen::Vector3d p = sphere_centers[i];
@@ -212,23 +217,27 @@ void collision_detection::BodyDecomposition::init(const std::vector<shapes::Shap
   relative_collision_points_.clear();
   std::vector<CollisionSphere> body_spheres;
   EigenSTL::vector_Vector3d body_collision_points;
+  double radius  = RESOLUTION_SCALE*resolution;
   for(unsigned int i = 0; i < bodies_.getCount(); i++)
   {
+
+    body_spheres.clear();
+    body_collision_points.clear();
+
     body_spheres = determineCollisionSpheres(bodies_.getBody(i),relative_cylinder_pose_);
     collision_spheres_.insert(collision_spheres_.end(),body_spheres.begin(),body_spheres.end());
 
-    distance_field::findInternalPointsConvex(*bodies_.getBody(i),resolution,body_collision_points);
+    distance_field::findInternalPointsConvex(*bodies_.getBody(i),2*radius,body_collision_points);
     relative_collision_points_.insert(relative_collision_points_.end(),body_collision_points.begin(), body_collision_points.end());
 
     // completing unpopulated portions of the geometry with resolution size spheres
-/*    std::vector<CollisionSphere> filling_spheres;
+    std::vector<CollisionSphere> filling_spheres;
     bool add_sphere = false;
-    CollisionSphere sphere(Eigen::Vector3d::Zero(),resolution);
+    CollisionSphere sphere(Eigen::Vector3d::Zero(),radius);
     for(unsigned int k = 0; k < body_collision_points.size(); k++)
     {
       add_sphere = true;
-      //sphere.relative_vec_ = bodies_.getBody(i)->getPose() *  body_collision_points[k];
-      sphere.relative_vec_ = body_collision_points[k];
+      sphere.relative_vec_ = relative_cylinder_pose_.inverse() *  body_collision_points[k];
       Eigen::Vector3d& v = sphere.relative_vec_;
 
       for(unsigned int j = 0; j < body_spheres.size(); j++)
@@ -252,7 +261,8 @@ void collision_detection::BodyDecomposition::init(const std::vector<shapes::Shap
     if(!filling_spheres.empty())
     {
       collision_spheres_.insert(collision_spheres_.end(),filling_spheres.begin(), filling_spheres.end());
-    }*/
+      ROS_DEBUG_STREAM("Filled geometry with "<<filling_spheres.size()<<" r = "<<filling_spheres.front().radius_<<" size spheres");
+    }
   }
 
 
